@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WAR: The Economy Battle</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #1e1e24;
+            color: white;
+            margin: 0;
+            padding: 10px;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* DASHBOARD & STATS */
+        .dashboard {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            max-width: 600px;
+            background: #2b2b36;
+            padding: 10px;
+            border-radius: 8px;
+            border: 2px solid #444;
+            margin-bottom: 15px;
+            box-sizing: border-box;
+        }
+        .stat-box { text-align: center; width: 45%; }
+        .stat-box h3 { margin: 0 0 5px 0; font-size: 16px; color: #aaa; }
+        .money-green { color: #00ff00; font-size: 24px; font-weight: bold; }
+        .money-red { color: #ff4444; font-size: 24px; font-weight: bold; }
+        .shield-active { color: #ffd700; font-size: 12px; display: none; }
+
+        /* PLAY AREA */
+        .play-area {
+            display: flex;
+            justify-content: space-around;
+            width: 100%;
+            max-width: 600px;
+            margin-bottom: 20px;
+            align-items: center;
+        }
+        .center-pile {
+            width: 80px; height: 120px;
+            background: #111;
+            border: 2px dashed #555;
+            border-radius: 6px;
+            display: flex; align-items: center; justify-content: center;
+        }
+        
+        /* CARD SLICER MAGIC */
+        .card {
+            width: 70px;
+            height: 105px;
+            background-image: url('Img/1774919086417.png');
+            background-size: 1100% 500%; 
+            border-radius: 6px;
+            display: inline-block;
+            margin: 4px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.6);
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+        .card:hover { transform: translateY(-10px); }
+        .card.disabled { filter: grayscale(100%); opacity: 0.5; pointer-events: none; }
+        .card-back { background-position: 50% 100%; }
+
+        /* CSS GRID POSITIONS FOR SPRITE SHEET */
+        .red-10 { background-position: 0% 0%; }
+        .red-50 { background-position: 30% 0%; }
+        .red-100 { background-position: 50% 0%; }
+        
+        .blue-10 { background-position: 0% 25%; }
+        .blue-50 { background-position: 30% 25%; }
+        .blue-100 { background-position: 50% 25%; }
+        
+        .green-10 { background-position: 0% 50%; }
+        .green-50 { background-position: 30% 50%; }
+        .green-100 { background-position: 50% 50%; }
+        
+        .yellow-10 { background-position: 0% 75%; }
+        .yellow-50 { background-position: 30% 75%; }
+        .yellow-100 { background-position: 50% 75%; }
+        
+        .nuke { background-position: 10% 100%; }
+
+        /* HANDS */
+        .hand {
+            display: flex; flex-wrap: wrap; justify-content: center;
+            width: 100%; max-width: 600px; min-height: 120px;
+            background: #222; padding: 10px; border-radius: 8px; box-sizing: border-box;
+        }
+        #bot-hand .card { cursor: default; }
+        #bot-hand .card:hover { transform: none; }
+
+        /* CONTROLS & SHOP */
+        .controls {
+            display: flex; gap: 10px; margin: 15px 0; flex-wrap: wrap; justify-content: center;
+        }
+        button {
+            background: #ffaa00; color: #000; font-weight: bold; border: none;
+            padding: 10px 15px; border-radius: 5px; cursor: pointer; font-size: 14px;
+        }
+        button:hover { background: #ffd700; }
+        button:disabled { background: #555; color: #888; cursor: not-allowed; }
+
+        /* GAME LOG */
+        .game-log {
+            width: 100%; max-width: 600px; height: 80px; background: #000;
+            color: #0f0; font-family: monospace; font-size: 12px;
+            padding: 10px; overflow-y: auto; border-radius: 5px; border: 1px solid #333;
+            box-sizing: border-box; margin-bottom: 20px;
+        }
+
+        /* IN-BUILT CALCULATOR */
+        .calculator {
+            position: fixed; bottom: 10px; right: 10px;
+            background: #333; padding: 10px; border-radius: 8px; border: 2px solid #555;
+            display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px;
+            width: 160px; z-index: 100;
+        }
+        .calc-display {
+            grid-column: span 4; background: #111; color: #0f0; text-align: right;
+            padding: 5px; font-size: 16px; border-radius: 3px; font-family: monospace;
+            border: 1px solid #555; margin-bottom: 5px; height: 20px;
+        }
+        .calc-btn {
+            background: #555; color: white; border: none; padding: 8px 0;
+            font-size: 14px; cursor: pointer; border-radius: 3px;
+        }
+        .calc-btn:hover { background: #777; }
+        .calc-btn.op { background: #ffaa00; color: black; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div class="dashboard">
+        <div class="stat-box">
+            <h3>BOT BANK</h3>
+            <div class="money-red" id="bot-bank">$500</div>
+            <div class="shield-active" id="bot-shield">🛡️ BUNKER ACTIVE</div>
+        </div>
+        <div class="stat-box">
+            <h3>YOUR BANK</h3>
+            <div class="money-green" id="player-bank">$500</div>
+            <div class="shield-active" id="player-shield">🛡️ BUNKER ACTIVE</div>
+        </div>
+    </div>
+
+    <div class="play-area">
+        <div>
+            <h4 style="margin: 0 0 5px 0; text-align: center; color: #aaa;">Bot Cards</h4>
+            <div style="font-size: 20px;" id="bot-card-count">🃏 x5</div>
+        </div>
+        
+        <div>
+            <h4 style="margin: 0 0 5px 0; text-align: center;">Center</h4>
+            <div class="center-pile" id="center-pile">
+                </div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <button id="draw-btn" onclick="playerDraw()">🎴 Draw Card</button>
+        <button id="shop-nuke" onclick="buyNuke()">☢️ Buy Nuke ($200)</button>
+    </div>
+
+    <div class="hand" id="player-hand">
+        </div>
+
+    <div class="game-log" id="game-log">
+        > WAR Initiated. Starting Bank: $500.<br>
+    </div>
+
+    <div class="calculator">
+        <div class="calc-display" id="calc-out">0</div>
+        <button class="calc-btn" onclick="calcPress('7')">7</button>
+        <button class="calc-btn" onclick="calcPress('8')">8</button>
+        <button class="calc-btn" onclick="calcPress('9')">9</button>
+        <button class="calc-btn op" onclick="calcPress('+')">+</button>
+        
+        <button class="calc-btn" onclick="calcPress('4')">4</button>
+        <button class="calc-btn" onclick="calcPress('5')">5</button>
+        <button class="calc-btn" onclick="calcPress('6')">6</button>
+        <button class="calc-btn op" onclick="calcPress('-')">-</button>
+        
+        <button class="calc-btn" onclick="calcPress('1')">1</button>
+        <button class="calc-btn" onclick="calcPress('2')">2</button>
+        <button class="calc-btn" onclick="calcPress('3')">3</button>
+        <button class="calc-btn op" onclick="calcPress('=')">=</button>
+        
+        <button class="calc-btn op" onclick="calcPress('C')">C</button>
+        <button class="calc-btn" onclick="calcPress('0')">0</button>
+        <button class="calc-btn" style="grid-column: span 2; background: #333; color: #aaa; font-size: 10px;">TARGET: $1</button>
+    </div>
+
+    <script>
+        // GAME STATE
+        let pBank = 500;
+        let bBank = 500;
+        let pProtected = false;
+        let bProtected = false;
+        let isPlayerTurn = true;
+        let topCard = null;
+
+        // DECK DATABASE
+        const deckMaster = [
+            { id: 'red-10', class: 'red-10', color: 'red', value: 10 },
+            { id: 'red-50', class: 'red-50', color: 'red', value: 50 },
+            { id: 'red-100', class: 'red-100', color: 'red', value: 100 },
+            { id: 'blue-10', class: 'blue-10', color: 'blue', value: 10 },
+            { id: 'blue-50', class: 'blue-50', color: 'blue', value: 50 },
+            { id: 'blue-100', class: 'blue-100', color: 'blue', value: 100 },
+            { id: 'green-10', class: 'green-10', color: 'green', value: 10 },
+            { id: 'green-50', class: 'green-50', color: 'green', value: 50 },
+            { id: 'green-100', class: 'green-100', color: 'green', value: 100 },
+            { id: 'yellow-10', class: 'yellow-10', color: 'yellow', value: 10 },
+            { id: 'yellow-50', class: 'yellow-50', color: 'yellow', value: 50 },
+            { id: 'yellow-100', class: 'yellow-100', color: 'yellow', value: 100 }
+        ];
+
+        let playerHand = [];
+        let botHand = [];
+
+        // UTILS
+        function logMsg(msg) {
+            const log = document.getElementById('game-log');
+            log.innerHTML += `> ${msg}<br>`;
+            log.scrollTop = log.scrollHeight;
+        }
+
+        function getRandomCard() {
+            return deckMaster[Math.floor(Math.random() * deckMaster.length)];
+        }
+
+        function updateUI() {
+            document.getElementById('player-bank').innerText = `$${pBank}`;
+            document.getElementById('bot-bank').innerText = `$${bBank}`;
+            document.getElementById('player-shield').style.display = pProtected ? 'block' : 'none';
+            document.getElementById('bot-shield').style.display = bProtected ? 'block' : 'none';
+            document.getElementById('bot-card-count').innerText = `🃏 x${botHand.length}`;
+            
+            document.getElementById('draw-btn').disabled = !isPlayerTurn;
+            document.getElementById('shop-nuke').disabled = (!isPlayerTurn || pBank < 200);
+
+            renderPlayerHand();
+            checkWin();
+        }
+
+        function checkWin() {
+            if (bBank <= 0 && pBank === 1) {
+                alert("ULTIMATE VICTORY! Opponent $0, You $1!");
+                resetGame();
+            } else if (bBank <= 0) {
+                alert("YOU WIN! Bot Bankrupted!");
+                resetGame();
+            } else if (pBank <= 0) {
+                alert("YOU LOSE! You went bankrupt!");
+                resetGame();
+            }
+        }
+
+        function resetGame() {
+            pBank = 500; bBank = 500; pProtected = false; bProtected = false;
+            initGame();
+        }
+
+        function renderPlayerHand() {
+            const handDiv = document.getElementById('player-hand');
+            handDiv.innerHTML = '';
+            playerHand.forEach((card, index) => {
+                const cDiv = document.createElement('div');
+                cDiv.className = `card ${card.class}`;
+                
+                // Rules check: Match color or value, or if Nuke (wild)
+                let canPlay = false;
+                if (!topCard || card.color === 'wild' || card.color === topCard.color || card.value === topCard.value) {
+                    canPlay = true;
+                }
+                
+                if (!canPlay || !isPlayerTurn) cDiv.classList.add('disabled');
+                
+                cDiv.onclick = () => {
+                    if (canPlay && isPlayerTurn) executePlay(index, true);
+                };
+                handDiv.appendChild(cDiv);
+            });
+        }
+
+        function setCenterCard(card) {
+            topCard = card;
+            const center = document.getElementById('center-pile');
+            center.innerHTML = `<div class="card ${card.class}"></div>`;
+        }
+
+        // --- GAME LOGIC ---
+        function executePlay(handIndex, isPlayer) {
+            let card;
+            if (isPlayer) {
+                card = playerHand.splice(handIndex, 1)[0];
+                isPlayerTurn = false;
+            } else {
+                card = botHand.splice(handIndex, 1)[0];
+            }
+
+            setCenterCard(card);
+            applyRules(card, isPlayer);
+            
+            if (isPlayer) {
+                setTimeout(botTurn, 1500);
+            } else {
+                isPlayerTurn = true;
+                updateUI();
+            }
+        }
+
+        function applyRules(card, isPlayer) {
+            let logPrefix = isPlayer ? "YOU" : "BOT";
+            let attackerHit = card.value || 0;
+            
+            // Defenses
+            if (isPlayer && card.color !== 'yellow') pProtected = false;
+            if (!isPlayer && card.color !== 'yellow') bProtected = false;
+
+            let defProtected = isPlayer ? bProtected : pProtected;
+
+            // RED: +$67 Payday
+            if (card.color === 'red') {
+                if (isPlayer) pBank += 67; else bBank += 67;
+                logMsg(`${logPrefix} played RED. Earned $67 Payday!`);
+            }
+            // BLUE: Steal $20
+            if (card.color === 'blue') {
+                if (!defProtected) {
+                    if (isPlayer) { pBank += 20; bBank -= 20; } else { bBank += 20; pBank -= 20; }
+                    logMsg(`${logPrefix} played BLUE. Stole $20!`);
+                } else {
+                    logMsg(`${logPrefix} played BLUE, but opponent is inside BUNKER!`);
+                }
+            }
+            // GREEN: -$30 Extra Damage
+            if (card.color === 'green') {
+                if (!defProtected) attackerHit += 30;
+                logMsg(`${logPrefix} played GREEN. Heavy artillery added $30 extra damage!`);
+            }
+            // YELLOW: Shield
+            if (card.color === 'yellow') {
+                if (isPlayer) pProtected = true; else bProtected = true;
+                logMsg(`${logPrefix} played YELLOW. Bunker activated!`);
+            }
+            // NUKE 
+            if (card.id === 'nuke') {
+                attackerHit = 100;
+                if (isPlayer) pBank += 67; else bBank += 67; // Nuke is Air, so +67
+                logMsg(`${logPrefix} DROPPED A NUKE! Opponent takes $100 hit, attacker earns $67!`);
+            }
+
+            // Apply base/modified damage
+            if (!defProtected && card.color !== 'yellow') {
+                if (isPlayer) bBank -= attackerHit; else pBank -= attackerHit;
+                logMsg(`${logPrefix} hit opponent for $${attackerHit}.`);
+            } else if (defProtected && card.color !== 'yellow') {
+                logMsg(`Attack blocked by BUNKER!`);
+            }
+
+            updateUI();
+        }
+
+        // PLAYER ACTIONS
+        function playerDraw() {
+            if (!isPlayerTurn) return;
+            playerHand.push(getRandomCard());
+            logMsg("YOU drew a card.");
+            isPlayerTurn = false;
+            updateUI();
+            setTimeout(botTurn, 1000);
+        }
+
+        function buyNuke() {
+            if (pBank >= 200 && isPlayerTurn) {
+                pBank -= 200;
+                playerHand.push({ id: 'nuke', class: 'nuke', color: 'wild', value: 100 });
+                logMsg("YOU bought a TACTICAL NUKE for $200!");
+                updateUI();
+            }
+        }
+
+        // BOT AI
+        function botTurn() {
+            logMsg("Bot is thinking...");
+            
+            setTimeout(() => {
+                // 1. Check if Bot can buy a Nuke and wants to (random chance if rich)
+                if (bBank >= 300 && Math.random() > 0.6) {
+                    bBank -= 200;
+                    botHand.push({ id: 'nuke', class: 'nuke', color: 'wild', value: 100 });
+                    logMsg("BOT bought a TACTICAL NUKE!");
+                }
+
+                // 2. Find a playable card
+                let playableIndex = -1;
+                for (let i = 0; i < botHand.length; i++) {
+                    let c = botHand[i];
+                    if (!topCard || c.color === 'wild' || c.color === topCard.color || c.value === topCard.value) {
+                        playableIndex = i;
+                        // If it's a Nuke or Red, prioritize it
+                        if (c.color === 'red' || c.color === 'wild') break; 
+                    }
+                }
+
+                // 3. Play or Draw
+                if (playableIndex !== -1) {
+                    executePlay(playableIndex, false);
+                } else {
+                    botHand.push(getRandomCard());
+                    logMsg("BOT drew a card.");
+                    isPlayerTurn = true;
+                    updateUI();
+                }
+            }, 1000);
+        }
+
+        // INIT
+        function initGame() {
+            playerHand = []; botHand = [];
+            for(let i=0; i<5; i++) {
+                playerHand.push(getRandomCard());
+                botHand.push(getRandomCard());
+            }
+            setCenterCard(getRandomCard());
+            logMsg("Game Started. Your Turn.");
+            updateUI();
+        }
+
+        // CALCULATOR LOGIC
+        let calcStr = "";
+        function calcPress(btn) {
+            const out = document.getElementById('calc-out');
+            if (btn === 'C') { calcStr = ""; out.innerText = "0"; return; }
+            if (btn === '=') {
+                try { 
+                    calcStr = eval(calcStr).toString(); 
+                } catch(e) { calcStr = "ERR"; }
+            } else {
+                calcStr += btn;
+            }
+            out.innerText = calcStr || "0";
+        }
+
+        window.onload = initGame;
+    </script>
+</body>
+</html>
+
